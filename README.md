@@ -25,4 +25,18 @@ MAP-FEED-PROCESSOR
                       [k nil]))
                 x)))
 (println (process-map '(1 2 3) {:position [[1 2 3][2 3 4]] :positionInd [[1 2 3][1 3 4]]} {:position: (match-line 3 3) :positionInd (match-line 0 0)}))
+
+(defn aggregate-feed[f]
+  (loop [position (first (get f :position))
+        feeds f
+        fmp {:position (match-line 2 2) :positionInd (match-line 0 0)}]
+    (if-not position
+      nil
+      (let [matches (process-map position feeds fmp)
+            remap (re-map-map feeds matches)
+            matched (+ (map #(val %) matches))]
+        (do
+          (println matched)
+          (recur (first (get feeds :position)) feeds fmp))))))
+(println (aggregate-feed {:position [[1 2 3][1 3 4]] :positionInd [[1 2 3][1 3 4]]}))
 ```
