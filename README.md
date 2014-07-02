@@ -1,6 +1,7 @@
 MAP-FEED-PROCESSOR
 ==================
 
+``` clojure
 (ns message.core)
 
 (defn match-line [pk fk] 
@@ -24,3 +25,4 @@ MAP-FEED-PROCESSOR
                       [k nil]))
                 x)))
 (println (process-map '(1 2 3) {:position [[1 2 3][2 3 4]] :positionInd [[1 2 3][1 3 4]]} {:position: (match-line 3 3) :positionInd (match-line 0 0)}))
+```
