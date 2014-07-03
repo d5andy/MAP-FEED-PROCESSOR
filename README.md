@@ -5,21 +5,20 @@ MAP-FEED-PROCESSOR
 (ns message.core)
 
 (defn match-line [pk fk] 
-  (let [pk-key pk fk-key fk]
-    (fn [pk-row fk-row]
-      (= (nth pk-row pk-key) (nth fk-row fk-key)))))
+  (fn [pk-row fk-row]
+    (= (nth pk-row pk) (nth fk-row fk))))
 (println ((match-line 0 0) '(1,2,2) '(2,2,2)))
 
 (defn re-map-map[x y]
   (into {} (map #(let [k (key %) v (val %)]
-                   (if (get y k)
+                   (if (k y)
                      [k (rest (k x))]                      
                      [k (k x)] ))
                 x)))
 (println (re-map-map '{:position [1,2,3] :positionInd [[1,2,3][2,3,4]]} '{:position [1,2,3]}))
 
 (defn process-map[position feeds fmap]
-  (into {} (map #(let [k (key %) v (first (val %)) func (get fmap k)]
+  (into {} (map #(let [k (key %) v (first (val %)) func (k fmap)]
                      (if (func position v)
                       [k v]                      
                       [k nil]))
