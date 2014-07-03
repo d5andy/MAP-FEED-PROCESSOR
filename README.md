@@ -18,13 +18,13 @@ MAP-FEED-PROCESSOR
                 x)))
 (println (re-map-map '{:position [1,2,3] :positionInd [[1,2,3][2,3,4]]} '{:position [1,2,3]}))
 
-(defn process-map[p x fmap]
+(defn process-map[position feeds fmap]
   (into {} (map #(let [k (key %) v (first (val %)) func (get fmap k)]
-                     (if (func p v)
+                     (if (func position v)
                       [k v]                      
                       [k nil]))
-                x)))
-(println (process-map '(1 2 3) {:position [[1 2 3][2 3 4]] :positionInd [[1 2 3][1 3 4]]} {:position: (match-line 3 3) :positionInd (match-line 0 0)}))
+                feeds)))
+(println (process-map '(1 2 3) {:position [[1 2 3][1 3 4]] :positionInd [[1 2 3][1 3 4]]} {:position (match-line 2 2) :positionInd (match-line 0 0)}))
 
 (defn aggregate-feed[f]
   (loop [position (first (get f :position))
