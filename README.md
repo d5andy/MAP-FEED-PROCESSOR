@@ -3,79 +3,85 @@ MAP-FEED-PROCESSOR
 
 ``` clojure
 (ns message.core)
+(use 'clojure.test)
 
-(defn match-line [pk fk] 
+(defn row-match [pk fk] 
   (fn [pk-row fk-row]
-    (if-let [fk-col (if (empty? fk-row) nil (fk-row fk))]
-      (= (pk-row pk) fk-col)
+    (if (or (empty? fk-row) (empty? pk-row))
       false
-      )))
-(println ((match-line 0 0) [1,2,2] [1,2,2]))
-(println ((match-line 0 0) [] [1,2,2]))
-(println ((match-line 0 0) [1,2,2] []))
-(println ((match-line 0 0) [] []))
+      (= (pk-row pk) (fk-row fk)))))
 
-(defn re-map-map[x y]
+(deftest row-match-test
+  (is (= true ((row-match 0 0) [1,2,2] [1,3,4])))
+  (is (= false ((row-match 0 0) [1,2,2] [2,2,2])))
+  (is (= false ((row-match 0 0) [1,2,2] [])))
+  (is (= false ((row-match 0 0) [] [])))
+  (is (= false ((row-match 0 0) [] [1,2,2])))
+  (is (= false ((row-match 0 0) nil nil)))  
+)
+
+(defn inc-matched[feeds matched-keys]
   (into {} (map #(let [k (key %) v (val %)]
                    (if (k y)
                      [k (rest (k x))]                      
                      [k (k x)] ))
-                x)))
-(println (re-map-map '{:position [1,2,3] :positionInd [[1,2,3][2,3,4]]} '{:position [1,2,3]}))
+                feeds)))
+(deftest inc-matched-test
+  (is (= {:position [] :positionInd [[1,2,3][2,3,4]]}
+         (inc-matched {:position [[1,2,3]] :positionInd [[1,2,3][2,3,4]]} {:position [[1,2,3]]}))))
 
 (defn process-map[position feeds fmap]
-  (into {} (map #(let [k (key %) v (first (val %)) func (k fmap)]
-                     (if (func position v)
-                      [k v]                      
-                      [k nil]))
+  (into {} (map #(let [k (key %)
+                        v (first (val %))
+                        func (k fmap)]
+                    (when (func position v) [k [v]]))
                 feeds)))
-(println (process-map [1 2 3] {:position [[1 2 3][1 3 4]] :positionInd [[1 2 3][1 3 4]]} {:position (match-line 2 2) :positionInd (match-line 0 0)}))
+(deftest process-map-test
+  (is (= {:positionInd [[1 2 3]] :measure [[1 2 3]]}
+         (process-map [1 2 3]
+                      {:measure [[1 2 3][1 3 4]] :positionInd [[1 2 3][1 3 4]]}
+                      {:measure (match-line 2 2) :positionInd (match-line 0 0)}))))
+
+(def feed-match-fn {:position (match-line 2 2) :positionInd (match-line 0 0)})
+
+(defn empty-aggregate[f]
+  (into {} (map #(if-let [k (key %)] [k []]) f)))
+
+(deftest empty-aggregate-test
+  (is (= {:position []} (empty-aggregate {:position 1}))))
 
 (defn aggregate-feed[f]
-  (let [related-feed-match-fn {:position (match-line 2 2) :positionInd (match-line 0 0)}
-        pos-match-fn (match-line 2 2)  related-feeds (select-keys f [:positionInd])  position-feed (f :position)]
-    (loop [position (first (:position f)) pfeed (rest position-feed) feeds related-feeds aggregate {}]
-      (if (nil? position)
-        (println aggregate)
-        (let [matches (process-map position feeds related-feed-match-fn)
-              remap (re-map-map feeds matches)             
-              match-related (not (every? empty? (vals (dissoc matches :position))))
-              next-position-matched (pos-match-fn position (first pfeed) )
-              next-position (false? (or match-related next-position-matched))]
-          (do
-;;            (println (if (next-position) aggregate "still builing")) 
-            (recur (if (match-related) position (first (pfeed :position)))
-                   (if (match-related) pfeed (rest pfeed))
-                   remap
-                   (if (next-position) {} (merge matches aggregate) ))))))))
+  (let [related-feeds (select-keys f [:positionInd])
+        position (first (f :position))
+        position-feed (rest (f :position))]
+    (trampoline process-feed-row position position-feed related-feeds (empty-aggregate f))))
 
 (defn process-feed-row[position position-feed related-feeds aggregate]
+  (println "at the start " aggregate)
   (if (nil? position)
-    (println aggregate)
-    (let [matches (process-map position feeds related-feed-match-fn)
-          remap (re-map-map feeds matches)             
-          match-related (not (every? empty? (vals (dissoc matches :position))))
-          next-position-matched (pos-match-fn position (first pfeed) )
-          next-position (false? (or match-related next-position-matched))]
+    (println "at the end " aggregate)
+    (let [matches (process-map position related-feeds feed-match-fn)
+          merged-aggregate (merge-with conj aggregate matches)
+          remap (re-map-map related-feeds matches)             
+          match-related (not (every? empty? (vals matches)))
+          next-position-matched ((:position feed-match-fn) position (first position-feed))]
+      (println "after let " merged-aggregate)
       (cond
-       ()
-       :else (println "die")
-       
-       )
-      
-   
-   ))
+       (true? match-related)
+       #(do
+          (println "matches " matches " aggregate " merged-aggregate)
+          (process-feed-row position position-feed remap merged-aggregate))
+       (true? next-position-matched)
+       #(do
+          (println "roll to next")
+          (process-feed-row (first position-feed) (rest position-feed) remap (merge merged-aggregate {:position position})))
+       :else #(do
+               (println "start new position: " (merge merged-aggregate {:position position}))
+               (process-feed-row (first position-feed) (rest position-feed) remap (empty-aggregate remap)))
+       ))))
 
+(deftest aggregate-feed-test
+  (is (= nil (aggregate-feed {:position [[1 2 3][1 3 4]] :positionInd [[1 2 3][1 3 4]]}))))
 
-(println (aggregate-feed {:position [[1 2 3][1 3 4]] :positionInd [[1 2 3][1 3 4]]}))
-
-(def feed {:position [[1 2 3]]] :positionInd [[1 2 3][1 3 4]]})
-(def feed2 {:position [[1 3 4]] :positionInd [[1 2 3][1 3 4]]})
-(println (assoc  feed  :position (rest (:position feed)))
-
-         (println (merge feed feed {:market [1 2 3 ]}))
-
-         (println (true? (and false true)))
-
-(map #{if [:position] [(key %)(rest (val %))]} position [[1 2 3][1 3 4]] :positionInd [[1 2 3][1 3 4]]}
+(run-tests 'message.core)
 ```
