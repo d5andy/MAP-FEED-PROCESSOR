@@ -40,9 +40,9 @@ MAP-FEED-PROCESSOR
   (is (= {:positionInd [[1 2 3]] :measure [[1 2 3]]}
          (process-map [1 2 3]
                       {:measure [[1 2 3][1 3 4]] :positionInd [[1 2 3][1 3 4]]}
-                      {:measure (match-line 2 2) :positionInd (match-line 0 0)}))))
+                      {:measure (row-match 2 2) :positionInd (row-match 0 0)}))))
 
-(def feed-match-fn {:position (match-line 2 2) :positionInd (match-line 0 0)})
+(def feed-match-fn {:position (row-match 2 2) :positionInd (row-match 0 0)})
 
 (defn empty-aggregate[f]
   (into {} (map #(if-let [k (key %)] [k []]) f)))
@@ -82,6 +82,7 @@ MAP-FEED-PROCESSOR
 
 (deftest aggregate-feed-test
   (is (= nil (aggregate-feed {:position [[1 2 3][1 3 4]] :positionInd [[1 2 3][1 3 4]]}))))
+(println (doseq [key [:position :positionInd]] [key []]))
 
 (run-tests 'message.core)
 ```
