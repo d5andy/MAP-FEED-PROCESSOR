@@ -34,10 +34,10 @@ MAP-FEED-PROCESSOR
   (into {} (map #(let [k (key %)
                         v (first (val %))
                         func (k fmap)]
-                    (when (func position v) [k [v]]))
+                    (when (func position v) [k v]))
                 feeds)))
 (deftest process-map-test
-  (is (= {:positionInd [[1 2 3]] :measure [[1 2 3]]}
+  (is (= {:positionInd [1 2 3] :measure [1 2 3]}
          (process-map [1 2 3]
                       {:measure [[1 2 3][1 3 4]] :positionInd [[1 2 3][1 3 4]]}
                       {:measure (row-match 2 2) :positionInd (row-match 0 0)}))))
@@ -57,32 +57,24 @@ MAP-FEED-PROCESSOR
     (trampoline process-feed-row position position-feed related-feeds (empty-aggregate f))))
 
 (defn process-feed-row[position position-feed related-feeds aggregate]
-  (println "at the start " aggregate)
   (if (nil? position)
-    (println "at the end " aggregate)
+    ([])
     (let [matches (process-map position related-feeds feed-match-fn)
           merged-aggregate (merge-with conj aggregate matches)
           remap (re-map-map related-feeds matches)             
           match-related (not (every? empty? (vals matches)))
           next-position-matched ((:position feed-match-fn) position (first position-feed))]
-      (println "after let " merged-aggregate)
       (cond
        (true? match-related)
-       #(do
-          (println "matches " matches " aggregate " merged-aggregate)
-          (process-feed-row position position-feed remap merged-aggregate))
+         #(process-feed-row position position-feed remap merged-aggregate)
        (true? next-position-matched)
-       #(do
-          (println "roll to next")
-          (process-feed-row (first position-feed) (rest position-feed) remap (merge merged-aggregate {:position position})))
-       :else #(do
-               (println "start new position: " (merge merged-aggregate {:position position}))
-               (process-feed-row (first position-feed) (rest position-feed) remap (empty-aggregate remap)))
-       ))))
+         #(process-feed-row (first position-feed) (rest position-feed) remap (merge-with conj merged-aggregate {:position position}))
+       :else
+         (cons (merge-with conj  merged-aggregate {:position position})  (lazy-seq (aggregate-feed (merge remap {:position [position-feed]}))))))))
 
 (deftest aggregate-feed-test
-  (is (= nil (aggregate-feed {:position [[1 2 3][1 3 4]] :positionInd [[1 2 3][1 3 4]]}))))
-(println (doseq [key [:position :positionInd]] [key []]))
+  (is (= {:positionInd [[1 2 3] [1 3 4]] :position [[1 2 3]]}  (first (aggregate-feed {:position [[1 2 3][1 3 4]] :positionInd [[1 2 3][1 3 4]]})))))
+
 
 (run-tests 'message.core)
 ```
