@@ -1,7 +1,3 @@
-MAP-FEED-PROCESSOR
-==================
-
-``` clojure
 (ns message.core)
 (use 'clojure.test)
 
@@ -73,7 +69,12 @@ MAP-FEED-PROCESSOR
          (cons (merge-with conj  merged-aggregate {:position position})  (lazy-seq (aggregate-feed (merge remap {:position [position-feed]}))))))))
 
 (deftest aggregate-feed-test
-  (is (= {:positionInd [[1 2 3] [1 3 4]] :position [[1 2 3]]}  (first (aggregate-feed {:position [[1 2 3][1 3 4]] :positionInd [[1 2 3][1 3 4]]})))))
+  (is (= {:positionInd [[1 2 3] [1 3 4]] :position [[1 2 3]]}
+         (first
+          (aggregate-feed {:position [[1 2 3][2 3 4]] :positionInd [[1 2 3][1 3 4]]}))))
+  (is (= {:positionInd [[1 2 3] [1 3 4]] :position [[1 2 3] [2 3 3]]}
+         (first
+          (aggregate-feed {:position [[1 2 3][2 3 3]] :positionInd [[1 2 3][1 3 4]]})))))
 
 
 (run-tests 'message.core)
