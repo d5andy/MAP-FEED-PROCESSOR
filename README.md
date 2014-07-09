@@ -1,3 +1,4 @@
+``` clojure
 (ns message.core)
 (use 'clojure.test)
 
