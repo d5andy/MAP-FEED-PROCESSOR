@@ -1,4 +1,15 @@
 ``` clojure
+(defproject feed "0.1.0-SNAPSHOT"
+  :description "FIXME: write description"
+  :url "http://example.com/FIXME"
+  :license {:name "Eclipse Public License"
+            :url "http://www.eclipse.org/legal/epl-v10.html"}
+  :dependencies [[org.clojure/clojure "1.6.0"]
+                 [org.apache.derby/derby "10.10.2.0"]
+                 [org.clojure/java.jdbc "0.3.4"]])
+```
+
+``` clojure
 (ns message.core)
 (use 'clojure.test)
 
@@ -19,9 +30,9 @@
 
 (defn inc-matched[feeds matched-keys]
   (into {} (map #(let [k (key %) v (val %)]
-                   (if (k y)
-                     [k (rest (k x))]                      
-                     [k (k x)] ))
+                   (if (k matched-keys)
+                     [k (rest (k feeds))]                      
+                     [k (k feeds)] ))
                 feeds)))
 (deftest inc-matched-test
   (is (= {:position [] :positionInd [[1,2,3][2,3,4]]}
@@ -58,7 +69,7 @@
     ([])
     (let [matches (process-map position related-feeds feed-match-fn)
           merged-aggregate (merge-with conj aggregate matches)
-          remap (re-map-map related-feeds matches)             
+          remap (inc-matched related-feeds matches)             
           match-related (not (every? empty? (vals matches)))
           next-position-matched ((:position feed-match-fn) position (first position-feed))]
       (cond
@@ -79,4 +90,25 @@
 
 
 (run-tests 'message.core)
+
+(println (first (aggregate-feed {:position [[1 2 3][2 3 4]] :positionInd [[1 2 3][1 3 4]]})))
+
+
+(def db {:subprotocol "derby"
+         :subname "clojure_test"
+         :create true})
+
+(db-do-commands db (create-table-ddl  :mytable  [:id :int "DEFAULT 0"] :table-spec ""))
+
+(insert! db :mytable nil [2])
+
+(query db ["SELECT * FROM mytable"])
+
+(def columns (into [] (map #(vec [(symbol %) :string]) ["col1" "col2"])))
+(println columns)
+
+
+(db-do-commands db (create-table-ddl "position" :table-spec ""))
+
+(execute! db ["create table position (positionId varchar(1000) not null)"])
 ```
