@@ -1,3 +1,13 @@
+``` sql
+CREATE TABLE students
+(
+id INTEGER NOT NULL GENERATED ALWAYS AS IDENTITY (START WITH 1, INCREMENT BY 1),
+name VARCHAR(24) NOT NULL,
+address VARCHAR(1024),
+CONSTRAINT primary_key PRIMARY KEY (id)
+) ;
+```
+
 ``` clojure
 (defproject feed "0.1.0-SNAPSHOT"
   :description "FIXME: write description"
