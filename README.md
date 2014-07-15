@@ -20,8 +20,29 @@ CONSTRAINT primary_key PRIMARY KEY (id)
 ```
 
 ``` clojure
-(ns message.core)
-(use 'clojure.test)
+
+(def db {:subprotocol "derby"
+         :subname "clojure_test"
+         :create true})
+
+(db-do-commands db (create-table-ddl  :mytable  [:id :int "DEFAULT 0"] :table-spec ""))
+
+(insert! db :mytable nil [2])
+
+(query db ["SELECT * FROM mytable"])
+
+(def columns (into [] (map #(vec [(symbol %) :string]) ["col1" "col2"])))
+(println columns)
+
+
+(db-do-commands db (create-table-ddl "position" :table-spec ""))
+
+(execute! db ["create table position (positionId varchar(1000) not null)"])
+
+```
+
+``` clojure
+(ns feed.core)
 
 (defn row-match [pk fk] 
   (fn [pk-row fk-row]
@@ -29,24 +50,12 @@ CONSTRAINT primary_key PRIMARY KEY (id)
       false
       (= (pk-row pk) (fk-row fk)))))
 
-(deftest row-match-test
-  (is (= true ((row-match 0 0) [1,2,2] [1,3,4])))
-  (is (= false ((row-match 0 0) [1,2,2] [2,2,2])))
-  (is (= false ((row-match 0 0) [1,2,2] [])))
-  (is (= false ((row-match 0 0) [] [])))
-  (is (= false ((row-match 0 0) [] [1,2,2])))
-  (is (= false ((row-match 0 0) nil nil)))  
-)
-
 (defn inc-matched[feeds matched-keys]
   (into {} (map #(let [k (key %) v (val %)]
                    (if (k matched-keys)
                      [k (rest (k feeds))]                      
                      [k (k feeds)] ))
                 feeds)))
-(deftest inc-matched-test
-  (is (= {:position [] :positionInd [[1,2,3][2,3,4]]}
-         (inc-matched {:position [[1,2,3]] :positionInd [[1,2,3][2,3,4]]} {:position [[1,2,3]]}))))
 
 (defn process-map[position feeds fmap]
   (into {} (map #(let [k (key %)
@@ -54,19 +63,14 @@ CONSTRAINT primary_key PRIMARY KEY (id)
                         func (k fmap)]
                     (when (func position v) [k v]))
                 feeds)))
-(deftest process-map-test
-  (is (= {:positionInd [1 2 3] :measure [1 2 3]}
-         (process-map [1 2 3]
-                      {:measure [[1 2 3][1 3 4]] :positionInd [[1 2 3][1 3 4]]}
-                      {:measure (row-match 2 2) :positionInd (row-match 0 0)}))))
 
-(def feed-match-fn {:position (row-match 2 2) :positionInd (row-match 0 0)})
+(def feed-match-fn {:position (row-match 2 2)
+                    :positionInd (row-match 0 0)})
 
 (defn empty-aggregate[f]
   (into {} (map #(if-let [k (key %)] [k []]) f)))
 
-(deftest empty-aggregate-test
-  (is (= {:position []} (empty-aggregate {:position 1}))))
+(declare aggregate-feed process-feed-row)
 
 (defn aggregate-feed[f]
   (let [related-feeds (select-keys f [:positionInd])
@@ -88,7 +92,48 @@ CONSTRAINT primary_key PRIMARY KEY (id)
        (true? next-position-matched)
          #(process-feed-row (first position-feed) (rest position-feed) remap (merge-with conj merged-aggregate {:position position}))
        :else
-         (cons (merge-with conj  merged-aggregate {:position position})  (lazy-seq (aggregate-feed (merge remap {:position [position-feed]}))))))))
+       (cons (merge-with conj  merged-aggregate {:position position})
+             (lazy-seq (aggregate-feed (merge remap {:position [position-feed]}))))
+       )
+      )
+    )
+  )
+
+
+
+(with-open [rdr (clojure.java.io/reader "resources/position.txt")]
+  (println (map split-row (line-seq rdr))))
+
+(defn split-row [row]
+  (clojure.string/split row #"\t"))
+```
+
+``` clojure
+(ns feed.core-test
+  (:require [clojure.test :refer :all]
+            [feed.core :refer :all]))
+
+(deftest row-match-test
+  (is (= true ((row-match 0 0) [1,2,2] [1,3,4])))
+  (is (= false ((row-match 0 0) [1,2,2] [2,2,2])))
+  (is (= false ((row-match 0 0) [1,2,2] [])))
+  (is (= false ((row-match 0 0) [] [])))
+  (is (= false ((row-match 0 0) [] [1,2,2])))
+  (is (= false ((row-match 0 0) nil nil)))  
+  )
+
+(deftest inc-matched-test
+  (is (= {:position [] :positionInd [[1,2,3][2,3,4]]}
+         (inc-matched {:position [[1,2,3]] :positionInd [[1,2,3][2,3,4]]} {:position [[1,2,3]]}))))
+
+(deftest process-map-test
+  (is (= {:positionInd [1 2 3] :measure [1 2 3]}
+         (process-map [1 2 3]
+                      {:measure [[1 2 3][1 3 4]] :positionInd [[1 2 3][1 3 4]]}
+                      {:measure (row-match 2 2) :positionInd (row-match 0 0)}))))
+
+(deftest empty-aggregate-test
+  (is (= {:position []} (empty-aggregate {:position 1}))))
 
 (deftest aggregate-feed-test
   (is (= {:positionInd [[1 2 3] [1 3 4]] :position [[1 2 3]]}
@@ -99,26 +144,6 @@ CONSTRAINT primary_key PRIMARY KEY (id)
           (aggregate-feed {:position [[1 2 3][2 3 3]] :positionInd [[1 2 3][1 3 4]]})))))
 
 
-(run-tests 'message.core)
 
-(println (first (aggregate-feed {:position [[1 2 3][2 3 4]] :positionInd [[1 2 3][1 3 4]]})))
-
-
-(def db {:subprotocol "derby"
-         :subname "clojure_test"
-         :create true})
-
-(db-do-commands db (create-table-ddl  :mytable  [:id :int "DEFAULT 0"] :table-spec ""))
-
-(insert! db :mytable nil [2])
-
-(query db ["SELECT * FROM mytable"])
-
-(def columns (into [] (map #(vec [(symbol %) :string]) ["col1" "col2"])))
-(println columns)
-
-
-(db-do-commands db (create-table-ddl "position" :table-spec ""))
-
-(execute! db ["create table position (positionId varchar(1000) not null)"])
+(run-tests 'feed.core)
 ```
