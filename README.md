@@ -53,7 +53,7 @@ CONSTRAINT primary_key PRIMARY KEY (id)
 (defn inc-matched[feeds matched-keys]
   (into {} (map #(let [k (key %) v (val %)]
                    (if (k matched-keys)
-                     [k (rest (k feeds))]                      
+                     [k (seq (rest (k feeds)))]                      
                      [k (k feeds)] ))
                 feeds)))
 
@@ -76,36 +76,30 @@ CONSTRAINT primary_key PRIMARY KEY (id)
   (let [related-feeds (select-keys f [:positionInd])
         position (first (f :position))
         position-feed (rest (f :position))]
-    (trampoline process-feed-row position position-feed related-feeds (empty-aggregate f))))
+    (trampoline process-feed-row {:position position :positionInd []} position-feed related-feeds [])))
 
 (defn process-feed-row[position position-feed related-feeds aggregate]
-  (if (nil? position)
-    ([])
-    (let [matches (process-map position related-feeds feed-match-fn)
-          merged-aggregate (merge-with conj aggregate matches)
+  (if (empty? (position :position))
+    []
+    (let [matches (process-map (position :position) related-feeds feed-match-fn)
+          merged-aggregate (merge-with conj position matches)
           remap (inc-matched related-feeds matches)             
           match-related (not (every? empty? (vals matches)))
-          next-position-matched ((:position feed-match-fn) position (first position-feed))]
+          next-position-matched ((:position feed-match-fn) (:position position) (first position-feed))]
       (cond
        (true? match-related)
-         #(process-feed-row position position-feed remap merged-aggregate)
+       #(process-feed-row merged-aggregate position-feed remap aggregate)
        (true? next-position-matched)
-         #(process-feed-row (first position-feed) (rest position-feed) remap (merge-with conj merged-aggregate {:position position}))
+       #(process-feed-row {:position (first position-feed) :positionInd []} (rest position-feed) remap (conj aggregate merged-aggregate))
        :else
-       (cons (merge-with conj  merged-aggregate {:position position})
-             (lazy-seq (aggregate-feed (merge remap {:position [position-feed]}))))
+       (cons (conj aggregate merged-aggregate) (lazy-seq (aggregate-feed (merge remap {:position [position-feed]}))))  
        )
       )
     )
   )
 
+(doseq [line (aggregate-feed {:position [[1 2 3][2 3 3][3 3 4]] :positionInd [[1 2 3][1 3 4]]})] (prn "line " line))
 
-
-(with-open [rdr (clojure.java.io/reader "resources/position.txt")]
-  (println (map split-row (line-seq rdr))))
-
-(defn split-row [row]
-  (clojure.string/split row #"\t"))
 ```
 
 ``` clojure
