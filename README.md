@@ -1,3 +1,70 @@
+```lisp
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(ansi-color-names-vector
+   ["#212526" "#ff4b4b" "#b4fa70" "#fce94f" "#729fcf" "#e090d7" "#8cc4ff" "#eeeeec"])
+ '(custom-enabled-themes (quote (Darkula))))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
+(put 'scroll-left 'disabled nil)
+
+(setq url-proxy-services
+     '(("no_proxy" . "^\\(localhost\\|10.*\\)")
+     ("http" . "inetproxy3.ldn.swissbank.com:8080")
+     ("https" . "inetproxy3.ldn.swissbank.com:8080")))
+(setq url-http-proxy-basic-auth-storage (list (list
+    "inetproxy3.ldn.swissbank.com:8080"(cons "Input your LDAP UID !"
+                      (base64-encode-string "sanderdb:Proxy123")))))
+
+(require 'package)
+(add-to-list 'package-archives
+             '("marmalade" . "http://marmalade-repo.org/packages/"))
+(add-to-list 'package-archives
+             '("melpa" . "http://melpa.milkbox.net/pacakges/"))
+(package-initialize)
+
+(add-hook 'cider-mode-hook 'cider-turn-on-eldoc-mode)
+;;(setq nrepl-hide-special-buffers t)
+(setq cider-repl-tab-command 'indent-for-tab-command) 
+(setq cider-prefer-local-resources t)
+(setq cider-repl-pop-to-buffer-on-connect nil)
+;;(setq cider-show-error-buffer nil)
+(setq cider-show-error-buffer 'only-in-repl)
+(setq cider-auto-select-error-buffer nil)
+(setq cider-stacktrace-default-filters '(tooling dup))
+(setq cider-stacktrace-fill-column 80)
+(setq nrepl-buffer-name-separator "-")
+(setq nrepl-buffer-name-show-port t)
+(setq cider-repl-display-in-current-window t)
+(setq cider-repl-print-length 100) ; the default is nil, no limit
+(setq cider-prompt-save-file-on-load nil)
+(setq cider-repl-result-prefix ";; => ")
+(setq cider-interactive-eval-result-prefix ";; => ")
+(setq cider-repl-use-clojure-font-lock t)
+(setq cider-switch-to-repl-command 'cider-switch-to-current-repl-buffer)
+;;(setq cider-known-endpoints '(("host-a" "10.10.10.1" "7888") ("host-b" "7888")))
+(setq cider-repl-wrap-history t)
+(setq cider-repl-history-size 1000) ; the default is 500
+;;(setq cider-repl-history-file "path/to/file")
+
+(require 'icomplete)
+
+(add-hook 'cider-repl-mode-hook 'subword-mode)
+(add-hook 'cider-repl-mode-hook 'paredit-mode)
+;;(add-hook 'cider-repl-mode-hook 'rainbow-delimiters-mode)
+
+(add-to-list 'load-path "~/.emacs.d/direx-el/")
+(require 'direx)
+(global-set-key (kbd "C-x C-j") 'direx:jump-to-directory)
+```
+
 ``` sql
 CREATE TABLE students
 (
