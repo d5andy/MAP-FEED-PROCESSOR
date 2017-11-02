@@ -17,10 +17,10 @@
 
 (setq url-proxy-services
      '(("no_proxy" . "^\\(localhost\\|10.*\\)")
-     ("http" . "inetproxy3.ldn.swissbank.com:8080")
-     ("https" . "inetproxy3.ldn.swissbank.com:8080")))
+     ("http" . "localhost:8080")
+     ("https" . "localhost:8080")))
 (setq url-http-proxy-basic-auth-storage (list (list
-    "inetproxy3.ldn.swissbank.com:8080"(cons "Input your LDAP UID !"
+    "localhost:8080"(cons "Input your LDAP UID !"
                       (base64-encode-string "sanderdb:Proxy123")))))
 
 (require 'package)
